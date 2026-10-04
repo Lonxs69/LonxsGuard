@@ -1120,3 +1120,11 @@ def t_mac(st):
         print("  Cancelado / formato inválido.")
 
 
+def t_dhcp(st):
+    print(f"  Renovando DHCP en {st.iface} (sudo)...")
+    sh(["sudo", "ipconfig", "set", st.iface, "DHCP"], timeout=20)
+    time.sleep(3)
+    ip = sh(["ipconfig", "getifaddr", st.iface])
+    print(f"  IP: {C.G}{ip or 'sin IP (¿portal/alcance?)'}{C.END}")
+
+

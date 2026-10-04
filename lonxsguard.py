@@ -477,3 +477,18 @@ def m_cookies(st):
                 _hunt_timestamp(st, dec, origen=kv[0])
 
 
+def _hunt_timestamp(st, text, origen=""):
+    # epoch (10 dígitos) o fechas ISO
+    for ts in re.findall(r"\b(1[0-9]{9})\b", text):
+        try:
+            when = dt.datetime.fromtimestamp(int(ts))
+            print(f"        {C.Y}⏱ epoch {ts} = {when:%Y-%m-%d %H:%M:%S}{C.END}")
+        except Exception:
+            pass
+    for iso in re.findall(r"\b(20\d{2}-\d{2}-\d{2}[T ]\d{2}:\d{2}:\d{2})", text):
+        print(f"        {C.Y}⏱ fecha {iso}{C.END}")
+
+
+# ===========================================================================
+# MÓDULO 5 — Enumeración de hosts y puertos (nmap)
+# ===========================================================================

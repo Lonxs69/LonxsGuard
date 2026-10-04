@@ -1086,3 +1086,22 @@ def t_arp(st):
         print(f"  {C.DIM}Vacío. Genera tráfico (pingea la subred) o usa nmap.{C.END}")
 
 
+def t_egress(st):
+    print("  Matriz de salida (¿qué puerto deja salir el firewall del portal?):")
+    tests = [("DNS/53", "8.8.8.8", 53), ("HTTP/80", "1.1.1.1", 80),
+             ("HTTPS/443", "1.1.1.1", 443), ("NTP/123", "129.6.15.28", 123),
+             ("SSH/22", "1.1.1.1", 22)]
+    openc = []
+    for name, host, port in tests:
+        try:
+            socket.create_connection((host, port), timeout=3).close()
+            openc.append(name)
+            print(f"    {C.G}✓ {name} abierto → canal de bypass candidato{C.END}")
+        except Exception:
+            print(f"    {C.DIM}✗ {name} bloqueado{C.END}")
+    if openc:
+        st.add("HIGH", "Egress permitido antes de autenticar",
+               f"Puertos de salida abiertos sin login: {', '.join(openc)}.",
+               "Bloquear todo el egress de clientes no autenticados.")
+
+

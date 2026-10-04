@@ -14,16 +14,20 @@ set -e
 cd "$(dirname "$0")"
 
 REMOTE="https://github.com/Lonxs69/LonxsGuard.git"
-TRAILER="Co-Authored-By: Claude Opus 4.8 <noreply@anthropic.com>"
+# >>> Pon el correo de TU cuenta Lonxs69 (GitHub → Settings → Emails) <<<
+NEW_NAME="lonxs69"
+NEW_EMAIL="PON_AQUI_TU_EMAIL_DE_LONXS69"
+case "$NEW_EMAIL" in PON_AQUI*|"") echo "✋ Edita NEW_EMAIL con el correo de tu cuenta Lonxs69."; exit 1;; esac
+
 TMP="$(mktemp -t lonxsguard_full)"
 cp lonxsguard.py "$TMP"
 
-commit() { git add -A; git commit -q -m "$1" -m "$TRAILER" >/dev/null 2>&1 || true; }
+commit() { git add -A; git commit -q -m "$1" >/dev/null 2>&1 || true; }
 
 # --- Repo e identidad -------------------------------------------------------
 [ -d .git ] || git init -q
-git config user.name  "Junior De León"
-git config user.email "kp01aj@gmail.com"
+git config user.name  "$NEW_NAME"
+git config user.email "$NEW_EMAIL"
 
 # --- Andamiaje --------------------------------------------------------------
 : > lonxsguard.py

@@ -1128,3 +1128,21 @@ def t_dhcp(st):
     print(f"  IP: {C.G}{ip or 'sin IP (¿portal/alcance?)'}{C.END}")
 
 
+def t_knock(st):
+    print(f"  {C.DIM}Port knocking: solo útil si un host OCULTA un puerto tras una secuencia\n"
+          f"  de 'toques'. No es parte normal de un captive portal; úsalo si una pista\n"
+          f"  del reto menciona 'knock' o un puerto que aparece/desaparece.{C.END}\n")
+    host = input(f"  Host [{st.net.get('gateway','')}]: ").strip() or st.net.get("gateway", "")
+    seq = input("  Secuencia de puertos (ej. 7000,8000,9000): ").strip()
+    ports = [int(x) for x in re.findall(r"\d+", seq)]
+    if not host or not ports:
+        print("  Faltan datos."); return
+    for p in ports:
+        try:
+            s = socket.socket(); s.settimeout(0.4); s.connect_ex((host, p)); s.close()
+        except Exception:
+            pass
+        print(f"    knock → {host}:{p}")
+    print(f"  {C.G}Secuencia enviada.{C.END} Reintenta ahora el puerto objetivo (usa 'puertos web').")
+
+

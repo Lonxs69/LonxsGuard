@@ -823,3 +823,34 @@ def _bars(rssi):
     return "▂   "
 
 
+def m_scan(st):
+    print(f"{C.BOLD}[0] Redes cercanas{C.END}")
+    print(f"  {C.DIM}Escaneo pasivo (no requiere conectarse)...{C.END}\n")
+    out = sh(["system_profiler", "SPAirPortDataType"], timeout=40)
+    nets = _parse_wifi(out)
+    if not nets:
+        print(f"  {C.Y}No se listaron redes.{C.END}")
+        print(f"  {C.DIM}En macOS reciente el escaneo necesita Localización activada "
+              f"para tu terminal:\n  Ajustes del Sistema → Privacidad y seguridad → "
+              f"Localización → activa Ghostty.{C.END}")
+        return
+    nets.sort(key=lambda n: n["rssi"], reverse=True)
+    print(f"  {C.G}{len(nets)} red(es) detectada(s){C.END}  {C.DIM}(ordenadas por señal){C.END}\n")
+    print(f"   {C.BOLD}{'#':<3}{'SSID':<26}{'Señal':<12}{'Canal':<7}Seguridad{C.END}")
+    for i, n in enumerate(nets, 1):
+        lock = "🔓" if n["open"] else "🔒"
+        cur = f"  {C.G}← conectado{C.END}" if n["current"] else ""
+        sig = f"{_bars(n['rssi'])} {n['rssi']}"
+        print(f"   {i:<3}{n['ssid'][:24]:<26}{sig:<12}{n['channel']:<7}{lock} {n['security']}{cur}")
+    try:
+        sel = input(f"\n  Nº de red para intentar conectar (Enter = volver): ").strip()
+    except EOFError:
+        sel = ""
+    if not sel.isdigit():
+        print("  Volviendo al menú."); return
+    idx = int(sel) - 1
+    if not (0 <= idx < len(nets)):
+        print("  Opción inválida."); return
+    _connect(st, nets[idx])
+
+

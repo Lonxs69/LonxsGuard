@@ -78,3 +78,12 @@ def _rgb(r, g, b):
     return f"\033[38;2;{r};{g};{b}m"
 
 
+def _hsv(h, s, v):
+    i = int(h * 6) % 6
+    f = h * 6 - int(h * 6)
+    p, q, t = v * (1 - s), v * (1 - f * s), v * (1 - (1 - f) * s)
+    r, g, b = [(v, t, p), (q, v, p), (p, v, t),
+               (p, q, v), (t, p, v), (v, p, q)][i]
+    return int(r * 255), int(g * 255), int(b * 255)
+
+

@@ -1547,3 +1547,28 @@ def m_red1(st):
 # ===========================================================================
 # MÓDULO ⚙️ — Avanzado (el resto de herramientas, sin saturar el menú)
 # ===========================================================================
+def m_advanced(st):
+    opts = [
+        ("🎯 Modo Misión guiado", m_mission),
+        ("🌐 Detectar red actual", m_detect),
+        ("🚪 Auditar captive portal", m_portal),
+        ("🍪 Analizar cookies / JWT", m_cookies),
+        ("🗺️ Enumerar hosts (nmap)", m_enum),
+        ("🔎 Inspector de peticiones HTTP", m_http),
+        ("🧰 Caja de herramientas (bypass)", m_tools),
+    ]
+    print(f"{C.BOLD}[⚙️] Avanzado{C.END}\n")
+    for i, (lab, _) in enumerate(opts, 1):
+        print(f"   {C.CY}{i}{C.END}. {lab}")
+    try:
+        s = input("\n  Elige (Enter = volver): ").strip()
+    except EOFError:
+        return
+    if s.isdigit() and 1 <= int(s) <= len(opts):
+        print()
+        opts[int(s) - 1][1](st)
+
+
+# ===========================================================================
+# MENÚ (curses)
+# ===========================================================================

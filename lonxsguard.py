@@ -391,3 +391,35 @@ def m_sniff(st):
               f"golpean el portal activamente y sí traen cookies/cabeceras.{C.END}")
 
 
+def _parse_http_line(st, line):
+    s = line.strip()
+    hit = False
+    patterns = [
+        ("request", r"^(GET|POST|PUT|HEAD|DELETE)\s+(\S+)\s+HTTP"),
+        ("host", r"^Host:\s*(.+)"),
+        ("cookie", r"^Cookie:\s*(.+)"),
+        ("setcookie", r"^Set-Cookie:\s*(.+)"),
+        ("auth", r"^Authorization:\s*(.+)"),
+        ("date", r"^(?:Date|Last-Modified):\s*(.+)"),
+    ]
+    for kind, pat in patterns:
+        m = re.search(pat, s, re.I)
+        if m:
+            val = m.group(0)
+            st.captures.append({"kind": kind, "value": val, "raw": s})
+            color = {"cookie": C.M, "setcookie": C.M, "auth": C.R,
+                     "date": C.CY, "request": C.G}.get(kind, C.W)
+            print(f"  {color}{val[:160]}{C.END}")
+            hit = True
+    # credenciales en cuerpo de formulario
+    for m in re.finditer(r"(user(?:name)?|usuario|email|login|pass(?:word)?|clave|pwd)=([^&\s\"']+)",
+                         s, re.I):
+        st.captures.append({"kind": "cred", "value": m.group(0), "raw": s})
+        print(f"  {C.R}{C.BOLD}[CRED] {m.group(0)}{C.END}")
+        hit = True
+    return hit
+
+
+# ===========================================================================
+# MÓDULO 4 — Análisis de cookies / JWT (decodifica fechas → flags)
+# ===========================================================================

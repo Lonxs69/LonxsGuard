@@ -1051,3 +1051,27 @@ def t_portal_multi(st):
         print(f"\n  {C.G}Ninguna sonda fue interceptada: salida libre / ya autenticado.{C.END}")
 
 
+def t_web_ports(st):
+    host = input(f"  Host [{st.net.get('gateway','')}]: ").strip() or st.net.get("gateway", "")
+    if not host:
+        print("  Sin host."); return
+    ports = [80, 443, 8080, 8000, 8443, 3000, 5000, 8888, 81, 8081]
+    print(f"\n  Probando puertos web en {C.G}{host}{C.END} (si uno cierra, prueba el siguiente):")
+    openp = []
+    for p in ports:
+        try:
+            socket.create_connection((host, p), timeout=1.5).close()
+            openp.append(p)
+            print(f"    {C.G}● ABIERTO {p}{C.END}")
+        except Exception:
+            print(f"    {C.DIM}○ cerrado {p}{C.END}")
+    for p in openp:
+        scheme = "https" if p in (443, 8443) else "http"
+        s, u, b, h = http_probe(f"{scheme}://{host}:{p}/")
+        tm = re.search(r"<title>(.*?)</title>", b or "", re.I | re.S)
+        extra = f" · {tm.group(1).strip()[:48]}" if tm else ""
+        print(f"    {C.CY}{scheme}://{host}:{p}/ → {s}{extra}{C.END}")
+    if not openp:
+        print(f"  {C.Y}Ningún puerto web abierto aquí; prueba otro host.{C.END}")
+
+

@@ -283,3 +283,23 @@ def m_portal(st):
                "Atar la sesión a cookie/certificado, no solo a la MAC.")
 
 
+def _analyze_form(st, url, body):
+    if not body or body.startswith("__ERR__"):
+        return
+    for f in re.findall(r"<form[^>]*>", body, re.I):
+        action = re.search(r'action\s*=\s*["\']([^"\']+)', f, re.I)
+        method = re.search(r'method\s*=\s*["\']([^"\']+)', f, re.I)
+        action = action.group(1) if action else "(misma URL)"
+        method = (method.group(1) if method else "GET").upper()
+        if method == "GET" and re.search(r"pass|clave|pwd", body, re.I):
+            st.add("HIGH", "Login por GET con contraseña",
+                   f"method=GET action={action}: la clave queda en URL/logs.",
+                   "Enviar credenciales por POST sobre HTTPS.")
+        if action.startswith("http://"):
+            st.add("MEDIUM", "Formulario envía a endpoint HTTP",
+                   f"action={action} sin TLS.", "El action debe ser HTTPS.")
+    pw = len(re.findall(r'type\s*=\s*["\']password', body, re.I))
+    if pw:
+        print(f"  {C.DIM}Formulario con {pw} campo(s) de contraseña detectado.{C.END}")
+
+

@@ -777,3 +777,42 @@ requestAnimationFrame(function(){var b=document.querySelector('.bar');if(b)b.cla
 # ===========================================================================
 # MÓDULO 0 — Ver redes cercanas (pasivo) y conectar
 # ===========================================================================
+def _parse_wifi(out):
+    nets, in_en0, section, cur = [], False, None, None
+    for ln in out.split("\n"):
+        stripped = ln.strip()
+        lead = len(ln) - len(ln.lstrip(" "))
+        if lead == 8 and stripped.endswith(":"):
+            in_en0 = (stripped == "en0:")
+            section = cur = None
+            continue
+        if not in_en0:
+            continue
+        if lead == 10 and stripped.endswith(":"):
+            if stripped.startswith("Current Network"):
+                section = "current"
+            elif stripped.startswith("Other Local"):
+                section = "other"
+            else:
+                section = None
+            cur = None
+            continue
+        if section and lead == 12 and stripped.endswith(":"):
+            cur = {"ssid": stripped[:-1], "security": "?", "channel": "?",
+                   "rssi": -100, "current": section == "current", "open": False}
+            nets.append(cur)
+            continue
+        if cur and lead == 14 and ":" in stripped:
+            k, _, v = stripped.partition(":")
+            k, v = k.strip(), v.strip()
+            if k == "Security":
+                cur["security"] = v
+                cur["open"] = ("none" in v.lower() or v.lower() == "open")
+            elif k == "Channel":
+                cur["channel"] = v.split()[0] if v else "?"
+            elif k.startswith("Signal"):
+                m = re.search(r"(-?\d+)", v)
+                cur["rssi"] = int(m.group(1)) if m else -100
+    return nets
+
+

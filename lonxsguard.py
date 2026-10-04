@@ -1075,3 +1075,14 @@ def t_web_ports(st):
         print(f"  {C.Y}Ningún puerto web abierto aquí; prueba otro host.{C.END}")
 
 
+def t_arp(st):
+    print("  Vecinos en la caché ARP (sin sudo, sin escanear):")
+    out = sh(["arp", "-a", "-i", st.iface])
+    rows = re.findall(r"\(([\d.]+)\) at ([0-9a-f:]{1,17})", out)
+    for ip, mac in rows:
+        gw = f"  {C.Y}← gateway{C.END}" if ip == st.net.get("gateway") else ""
+        print(f"    {ip:<16} {mac}{gw}")
+    if not rows:
+        print(f"  {C.DIM}Vacío. Genera tráfico (pingea la subred) o usa nmap.{C.END}")
+
+

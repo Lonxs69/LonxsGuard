@@ -427,3 +427,26 @@ def _b64pad(s):
     return s + "=" * (-len(s) % 4)
 
 
+def _try_decode(token):
+    """Intenta JWT y base64 simple; devuelve texto decodificado si parece útil."""
+    out = []
+    # JWT: tres partes separadas por punto
+    if token.count(".") == 2:
+        for part in token.split(".")[:2]:
+            try:
+                dec = base64.urlsafe_b64decode(_b64pad(part)).decode("utf-8", "replace")
+                if "{" in dec:
+                    out.append("JWT: " + dec)
+            except Exception:
+                pass
+    # base64 plano
+    if re.fullmatch(r"[A-Za-z0-9+/=_-]{8,}", token):
+        try:
+            dec = base64.b64decode(_b64pad(token)).decode("utf-8", "replace")
+            if sum(c.isprintable() for c in dec) > len(dec) * 0.8 and any(c.isalnum() for c in dec):
+                out.append("b64: " + dec)
+        except Exception:
+            pass
+    return out
+
+

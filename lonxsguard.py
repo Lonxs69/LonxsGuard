@@ -231,3 +231,22 @@ CANARIES = [
 ]
 
 
+def detect_portal_multi():
+    """Devuelve (captive, portal_url, evidencia[(sonda, resultado)])."""
+    captive, portal, ev = False, None, []
+    for name, url, expect in CANARIES:
+        s, u, b, h = http_probe(url)
+        if s is None:
+            ev.append((name, "sin respuesta"))
+            continue
+        ok = (s == 204) if expect is None else (expect in (b or ""))
+        if ok:
+            ev.append((name, "OK · salida libre"))
+        else:
+            captive = True
+            cand = (u if u != url else (h or {}).get("Location")) or url
+            portal = portal or cand
+            ev.append((name, f"interceptado → {cand}"))
+    return captive, portal, ev
+
+

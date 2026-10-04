@@ -87,3 +87,7 @@ def _hsv(h, s, v):
     return int(r * 255), int(g * 255), int(b * 255)
 
 
+def _center(s, w, pad_extra=0):
+    return " " * max(0, (w - len(s) - pad_extra) // 2) + s
+
+

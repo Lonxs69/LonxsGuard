@@ -1178,3 +1178,27 @@ def m_tools(st):
 WORDLIST_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "wordlists")
 
 
+def _login_try(url, method, data, fail_str, base_len):
+    try:
+        if method == "GET":
+            full = url + ("&" if "?" in url else "?") + urlencode(data)
+            req = urllib.request.Request(full, headers={"User-Agent": "Mozilla/5.0"})
+        else:
+            req = urllib.request.Request(url, data=urlencode(data).encode(),
+                                         headers={"User-Agent": "Mozilla/5.0"})
+        with urllib.request.urlopen(req, timeout=8) as r:
+            b = r.read(20000).decode("utf-8", "replace")
+            code, final = r.status, r.geturl()
+    except urllib.error.HTTPError as e:
+        b, code, final = (e.read(5000).decode("utf-8", "replace") if e.fp else ""), e.code, url
+    except Exception:
+        return None
+    if fail_str:
+        ok = fail_str.lower() not in b.lower()
+    elif base_len is not None:
+        ok = abs(len(b) - base_len) > 30
+    else:
+        ok = code in (301, 302)
+    return (ok, code, len(b), final)
+
+

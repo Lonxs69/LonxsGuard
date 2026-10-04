@@ -1673,3 +1673,16 @@ def menu_loop(stdscr):
                 run_action(stdscr, MENU[i][1], st)
 
 
+def main():
+    if sys.platform != "darwin":
+        print("Pensado para macOS.")
+    intro()
+    try:
+        curses.wrapper(menu_loop)
+    except KeyboardInterrupt:
+        pass
+    print(f"{C.CY}LonxsGuard — hasta la próxima, {AUTHOR}.{C.END}")
+
+
+if __name__ == "__main__":
+    main()

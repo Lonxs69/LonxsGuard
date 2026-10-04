@@ -552,3 +552,32 @@ def m_enum(st):
 # ===========================================================================
 # MÓDULO 6 — Inspector de peticiones HTTP (replay manual)
 # ===========================================================================
+def m_http(st):
+    print(f"{C.BOLD}[6] Inspector de peticiones HTTP{C.END}\n")
+    url = input("  URL (ej. http://portal.local/login): ").strip()
+    if not url:
+        print("  Cancelado."); return
+    if not url.startswith(("http://", "https://")):
+        url = "http://" + url
+    status, final, body, headers = http_probe(url, timeout=8)
+    print(f"\n  {C.G}Status:{C.END} {status}   {C.G}URL final:{C.END} {final}\n")
+    print(f"  {C.BOLD}Cabeceras de respuesta:{C.END}")
+    for k, v in headers.items():
+        color = C.M if k.lower() == "set-cookie" else (C.CY if k.lower() in ("date", "last-modified") else C.W)
+        print(f"    {color}{k}: {v}{C.END}")
+        if k.lower() == "set-cookie":
+            st.captures.append({"kind": "setcookie", "value": f"Set-Cookie: {v}", "raw": v})
+            for kv in re.findall(r"([A-Za-z0-9_\-]+)=([A-Za-z0-9+/=._-]+)", v):
+                for dec in _try_decode(kv[1]):
+                    print(f"      {C.CY}↳ {kv[0]} → {dec[:160]}{C.END}")
+                    _hunt_timestamp(st, dec, kv[0])
+    # título / formulario
+    tm = re.search(r"<title>(.*?)</title>", body, re.I | re.S)
+    if tm:
+        print(f"\n  {C.DIM}<title>: {tm.group(1).strip()[:80]}{C.END}")
+    _analyze_form(st, final, body)
+
+
+# ===========================================================================
+# MÓDULO 7 — Reporte HTML
+# ===========================================================================

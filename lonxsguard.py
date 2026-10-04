@@ -155,3 +155,59 @@ class State:
 # ===========================================================================
 # MÓDULO 1 — Detección de red
 # ===========================================================================
+def m_detect(st):
+    iface = st.iface
+    print(f"{C.BOLD}[1] Detección de red ({iface}){C.END}\n")
+
+    def g_ssid():
+        out = sh(["ipconfig", "getsummary", iface])
+        m = re.search(r"\bSSID\s*:\s*(.+)", out)
+        if m: return m.group(1).strip()
+        out = sh(["networksetup", "-getairportnetwork", iface])
+        m = re.search(r"Current Wi-Fi Network:\s*(.+)", out)
+        return m.group(1).strip() if m else "(desconocido)"
+
+    ip = sh(["ipconfig", "getifaddr", iface])
+    ifc = sh(["ifconfig", iface])
+    maskm = re.search(r"netmask (0x[0-9a-fA-F]+)", ifc)
+    mask = ""
+    if maskm:
+        hx = int(maskm.group(1), 16)
+        mask = ".".join(str((hx >> s) & 0xFF) for s in (24, 16, 8, 0))
+    gw = ""
+    g = sh(["route", "-n", "get", "default"])
+    gm = re.search(r"gateway:\s*([\d.]+)", g)
+    if gm: gw = gm.group(1)
+    dns = []
+    for s in re.findall(r"nameserver\[\d+\]\s*:\s*([\d.]+)", sh(["scutil", "--dns"])):
+        if s not in dns: dns.append(s)
+    macm = re.search(r"ether ([0-9a-f:]{17})", ifc)
+    cidr = ""
+    if ip and mask:
+        octs = [int(x) for x in ip.split(".")]
+        mb = [int(x) for x in mask.split(".")]
+        net = ".".join(str(octs[i] & mb[i]) for i in range(4))
+        bits = sum(bin(int(o)).count("1") for o in mask.split("."))
+        cidr = f"{net}/{bits}"
+
+    st.net = {"ssid": g_ssid(), "iface": iface, "ip": ip, "mask": mask,
+              "cidr": cidr, "gateway": gw, "dns": dns,
+              "mac": macm.group(1) if macm else "",
+              "ts": dt.datetime.now().strftime("%Y-%m-%d %H:%M:%S")}
+
+    print(f"  SSID     : {C.G}{st.net['ssid']}{C.END}")
+    print(f"  MAC local: {st.net['mac']}")
+    print(f"  IP local : {ip}   máscara {mask}  → red {C.G}{cidr or '?'}{C.END}")
+    print(f"  Gateway  : {gw or '?'}")
+    print(f"  DNS      : {', '.join(dns) if dns else '(ninguno)'}")
+    if not ip:
+        print(f"\n  {C.Y}Sin IP: ¿asociado a la red?{C.END}")
+
+
+# ===========================================================================
+# MÓDULO 2 — Auditoría de captive portal
+# ===========================================================================
+APPLE_PROBE = "http://captive.apple.com/hotspot-detect.html"
+APPLE_OK = "<HTML><HEAD><TITLE>Success</TITLE></HEAD><BODY>Success</BODY></HTML>"
+
+

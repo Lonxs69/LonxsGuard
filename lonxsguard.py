@@ -303,3 +303,20 @@ def _analyze_form(st, url, body):
         print(f"  {C.DIM}Formulario con {pw} campo(s) de contraseña detectado.{C.END}")
 
 
+def _preauth_leak(st, captive):
+    leaked = []
+    for host, port in [("1.1.1.1", 443), ("8.8.8.8", 53)]:
+        try:
+            socket.create_connection((host, port), timeout=4).close()
+            leaked.append(f"{host}:{port}")
+        except Exception:
+            pass
+    if captive and leaked:
+        st.add("CRITICAL", "Fuga de conectividad antes de autenticar",
+               f"Sin pasar el portal se alcanzó {', '.join(leaked)} directo: "
+               "el control de acceso es evadible.",
+               "Bloquear TODO el egress de clientes no autenticados, no solo HTTP.")
+    elif captive:
+        print(f"  {C.DIM}Sin fuga directa pre-auth (bien).{C.END}")
+
+

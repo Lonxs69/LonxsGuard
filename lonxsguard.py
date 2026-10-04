@@ -1572,3 +1572,15 @@ def m_advanced(st):
 # ===========================================================================
 # MENÚ (curses)
 # ===========================================================================
+MENU = [
+    ("📶  Redes cercanas (escanear y elegir)", m_scan),
+    ("🔴  Crackear WiFi con clave — Red 3", m_wifi_crack),
+    ("🟣  Forzar login de portal — Red 2", m_brute),
+    ("🔵  Conectar y pasar portal — Red 1", m_red1),
+    ("📡  Interceptar tráfico de la red", m_sniff),
+    ("📄  Reporte HTML", m_report),
+    ("⚙️   Avanzado (más herramientas)", m_advanced),
+    ("🏳️   Salir", None),
+]
+
+

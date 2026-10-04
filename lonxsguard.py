@@ -1105,3 +1105,18 @@ def t_egress(st):
                "Bloquear todo el egress de clientes no autenticados.")
 
 
+def t_mac(st):
+    cur = re.search(r"ether ([0-9a-f:]{17})", sh(["ifconfig", st.iface]))
+    print(f"  MAC actual de {st.iface}: {C.G}{cur.group(1) if cur else '?'}{C.END}")
+    print(f"  {C.DIM}Para probar bypass por MAC primero desactiva 'Dirección Wi-Fi privada'\n"
+          f"  en Ajustes → Wi-Fi → (i) de la red. Luego fija una MAC autorizada aquí.{C.END}")
+    nm = input("  Nueva MAC XX:XX:XX:XX:XX:XX (vacío = cancelar): ").strip()
+    if re.fullmatch(r"([0-9a-fA-F]{2}:){5}[0-9a-fA-F]{2}", nm):
+        print(f"  {C.Y}Requiere sudo...{C.END}")
+        sh(["sudo", "ifconfig", st.iface, "ether", nm], timeout=20)
+        now = re.search(r"ether ([0-9a-f:]{17})", sh(["ifconfig", st.iface]))
+        print(f"  MAC ahora: {C.G}{now.group(1) if now else '?'}{C.END}")
+    else:
+        print("  Cancelado / formato inválido.")
+
+

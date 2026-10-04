@@ -977,3 +977,11 @@ def hunt_flags(st):
 # ===========================================================================
 # MODO MISIÓN — flujo guiado por estaciones (sube de nivel)
 # ===========================================================================
+def _stage(n, total, title):
+    bar = "█" * n + "░" * (total - n)
+    print(f"\n{C.M}{'═' * 62}{C.END}")
+    print(f"  {C.BOLD}{C.CY}ESTACIÓN {n}/{total}{C.END}{C.BOLD} — {title}{C.END}")
+    print(f"  {C.G}[{bar}]{C.END}")
+    print(f"{C.M}{'═' * 62}{C.END}\n")
+
+

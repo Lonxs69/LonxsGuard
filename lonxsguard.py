@@ -1146,3 +1146,35 @@ def t_knock(st):
     print(f"  {C.G}Secuencia enviada.{C.END} Reintenta ahora el puerto objetivo (usa 'puertos web').")
 
 
+def m_tools(st):
+    if not st.net:
+        m_detect(st); print()
+    opts = [
+        ("Detección de portal multi-sonda (Apple/Android/MS)", t_portal_multi),
+        ("Buscar puertos web (si uno cierra, prueba otro)", t_web_ports),
+        ("Hosts por caché ARP (sin sudo, sin ruido)", t_arp),
+        ("Matriz de salida / rutas de bypass", t_egress),
+        ("Ver / cambiar MAC (bypass por MAC)", t_mac),
+        ("Renovar DHCP (si no hay IP)", t_dhcp),
+        ("Port knocking (avanzado/situacional)", t_knock),
+    ]
+    print(f"{C.BOLD}[🧰] Caja de herramientas adaptativas{C.END}")
+    print(f"{C.DIM}  Plan B para cuando algo falla: puerto cerrado, portal que se esconde, "
+          f"sin IP, etc.{C.END}\n")
+    for i, (lab, _) in enumerate(opts, 1):
+        print(f"   {C.CY}{i}{C.END}. {lab}")
+    try:
+        sel = input("\n  Elige herramienta (Enter = volver): ").strip()
+    except EOFError:
+        return
+    if sel.isdigit() and 1 <= int(sel) <= len(opts):
+        print()
+        opts[int(sel) - 1][1](st)
+
+
+# ===========================================================================
+# MÓDULO 🔓 — Fuerza bruta de login (solo objetivos AUTORIZADOS del reto)
+# ===========================================================================
+WORDLIST_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "wordlists")
+
+

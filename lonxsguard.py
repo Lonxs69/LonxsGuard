@@ -250,3 +250,36 @@ def detect_portal_multi():
     return captive, portal, ev
 
 
+def m_portal(st):
+    if not st.net:
+        m_detect(st); print()
+    print(f"{C.BOLD}[2] Auditoría de captive portal / login{C.END}\n")
+    captive, portal_url, evidence = detect_portal_multi()
+    for name, res in evidence:
+        tag = C.G if "OK" in res else (C.Y if "interceptado" in res else C.DIM)
+        print(f"  {C.DIM}sonda{C.END} {name:<10} {tag}{res}{C.END}")
+    print()
+
+    if not captive:
+        print(f"  {C.G}Sin captive portal activo (o ya autenticado).{C.END}")
+        st.net["portal"] = None
+    else:
+        st.net["portal"] = portal_url
+        print(f"  {C.Y}Captive portal detectado{C.END} → {portal_url}\n")
+        if portal_url and portal_url.startswith("http://"):
+            st.add("HIGH", "Portal/login sobre HTTP (sin cifrar)",
+                   f"{portal_url} responde en texto plano; credenciales sin TLS.",
+                   "Servir portal y POST de login solo por HTTPS + HSTS.")
+        if portal_url:
+            _, purl, pbody, _ = http_probe(portal_url)
+            _analyze_form(st, purl, pbody)
+
+    _preauth_leak(st, captive)
+    _dns_egress(st, captive)
+    if captive:
+        st.add("INFO", "Posible autenticación por MAC",
+               "Si el portal recuerda al cliente por MAC, se puede clonar una MAC "
+               "ya autorizada (probar en lab: sudo ifconfig en0 ether <MAC>).",
+               "Atar la sesión a cookie/certificado, no solo a la MAC.")
+
+

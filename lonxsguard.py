@@ -132,3 +132,26 @@ def intro():
 # ---------------------------------------------------------------------------
 # Estado de la sesión (persiste entre módulos)
 # ---------------------------------------------------------------------------
+class State:
+    def __init__(self):
+        self.net = {}
+        self.findings = []
+        self.hosts = []
+        self.captures = []   # cabeceras/credenciales interceptadas
+        self.iface = "en0"
+
+    def add(self, sev, title, detail, reco=""):
+        self.findings.append({"sev": sev, "title": title,
+                              "detail": detail, "reco": reco})
+        color = SEV_COLOR.get(sev, C.W)
+        print(f"  {color}[{sev}]{C.END} {title}")
+        if detail:
+            print(f"      {C.DIM}{detail}{C.END}")
+
+    def sorted_findings(self):
+        return sorted(self.findings, key=lambda f: SEV_RANK.get(f["sev"], 9))
+
+
+# ===========================================================================
+# MÓDULO 1 — Detección de red
+# ===========================================================================

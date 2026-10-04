@@ -1584,3 +1584,10 @@ MENU = [
 ]
 
 
+def _safe(stdscr, y, x, s, attr=0):
+    try:
+        stdscr.addstr(y, x, s, attr)
+    except curses.error:
+        pass
+
+

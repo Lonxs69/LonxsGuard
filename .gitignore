@@ -1,0 +1,19 @@
+# === Datos privados (NUNCA subir) ===
+# Reportes de auditoría con SSID/IP/MAC de redes reales
+reports/
+
+# Diccionarios grandes o no redistribuibles
+wordlists/rockyou.txt
+wordlists/*.gz
+
+# === Python ===
+__pycache__/
+*.pyc
+*.pyo
+
+# === macOS ===
+.DS_Store
+
+# === Temporales ===
+*.tmp
+*.log

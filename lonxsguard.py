@@ -91,3 +91,44 @@ def _center(s, w, pad_extra=0):
     return " " * max(0, (w - len(s) - pad_extra) // 2) + s
 
 
+def intro():
+    cols = shutil.get_terminal_size((80, 24)).columns
+    logo = BANNER.strip("\n").split("\n")
+    lw = max(len(l) for l in logo)
+    sys.stdout.write("\033[2J\033[H")   # limpiar
+    try:
+        frames = 20
+        for fr in range(frames):
+            sys.stdout.write("\033[H\n")
+            off = fr / frames
+            for ln in logo:
+                pad = " " * max(0, (cols - lw) // 2)
+                buf = pad
+                for j, ch in enumerate(ln):
+                    if ch == " ":
+                        buf += " "
+                        continue
+                    r, g, b = _hsv(((j / lw) + off) % 1.0, 0.85, 1.0)
+                    buf += _rgb(r, g, b) + ch
+                sys.stdout.write(buf + "\033[0m\033[K\n")
+            sys.stdout.flush()
+            time.sleep(0.045)
+    except Exception:
+        for ln in logo:
+            print(_center(ln, cols))
+    gold = _rgb(255, 215, 0)
+    w1 = "👑  Bienvenido, señor Junior  👑"
+    print("\n" + gold + "\033[1m" + _center(w1, cols, pad_extra=2) + "\033[0m")
+    sub = "hoy le demostraré por qué es tan valioso haberme construido, señor"
+    print("\033[2m\033[3m" + _center(sub, cols) + "\033[0m\n")
+    tag = f"LonxsGuard v{VERSION}  ·  by {AUTHOR}  ·  solo redes autorizadas"
+    print(_rgb(130, 140, 170) + _center(tag, cols) + "\033[0m")
+    try:
+        input("\n" + _center("Presiona Enter para entrar...", cols))
+    except EOFError:
+        pass
+
+
+# ---------------------------------------------------------------------------
+# Estado de la sesión (persiste entre módulos)
+# ---------------------------------------------------------------------------

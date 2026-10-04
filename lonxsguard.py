@@ -53,3 +53,11 @@ BANNER = r"""
 """
 
 
+def sh(cmd, timeout=15):
+    try:
+        r = subprocess.run(cmd, capture_output=True, text=True, timeout=timeout)
+        return r.stdout.strip()
+    except Exception:
+        return ""
+
+

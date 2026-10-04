@@ -450,3 +450,30 @@ def _try_decode(token):
     return out
 
 
+def m_cookies(st):
+    print(f"{C.BOLD}[4] Análisis de cookies / sesión{C.END}\n")
+    cookies = [c for c in st.captures if c["kind"] in ("cookie", "setcookie")]
+    if not cookies:
+        print(f"  {C.Y}No hay cookies capturadas. Usa antes el módulo [3] o [6].{C.END}")
+        return
+
+    for c in cookies:
+        line = c["value"]
+        print(f"  {C.M}{line[:200]}{C.END}")
+        # flags de seguridad en Set-Cookie
+        if c["kind"] == "setcookie":
+            low = line.lower()
+            if "secure" not in low:
+                st.add("MEDIUM", "Cookie sin flag Secure",
+                       line[:80], "Marcar la cookie como Secure (solo HTTPS).")
+            if "httponly" not in low:
+                st.add("LOW", "Cookie sin flag HttpOnly",
+                       line[:80], "Marcar HttpOnly para mitigar robo vía XSS.")
+        # intentar decodificar cada valor
+        for kv in re.findall(r"([A-Za-z0-9_\-]+)=([A-Za-z0-9+/=._-]+)", line):
+            for dec in _try_decode(kv[1]):
+                print(f"      {C.CY}↳ {kv[0]} → {dec[:200]}{C.END}")
+                # buscar timestamps dentro
+                _hunt_timestamp(st, dec, origen=kv[0])
+
+

@@ -985,3 +985,10 @@ def _stage(n, total, title):
     print(f"{C.M}{'═' * 62}{C.END}\n")
 
 
+def _pause(msg="Enter para avanzar a la siguiente estación..."):
+    try:
+        input(f"\n{C.DIM}  ▶ {msg}{C.END}")
+    except EOFError:
+        pass
+
+

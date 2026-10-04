@@ -960,3 +960,20 @@ def collect_flags(st):
     return out
 
 
+def hunt_flags(st):
+    """Recorre TODO lo capturado buscando fechas, epochs y 'flag'."""
+    print(f"  {C.BOLD}Rastreando flags, fechas y tokens en todo lo capturado...{C.END}\n")
+    flags = collect_flags(st)
+    for kind, text in flags:
+        icon, col = ("🚩", C.R + C.BOLD) if kind == "flag" else ("⏱", C.Y)
+        print(f"    {col}{icon} {text}{C.END}")
+    if not flags:
+        print(f"    {C.DIM}Nada todavía. Necesitas capturar tráfico/cookies del portal "
+              f"real (usa Modo Misión conectado a la red del reto).{C.END}")
+    else:
+        print(f"\n  {C.G}{len(flags)} pista(s) temporal(es)/flag encontrada(s).{C.END}")
+
+
+# ===========================================================================
+# MODO MISIÓN — flujo guiado por estaciones (sube de nivel)
+# ===========================================================================

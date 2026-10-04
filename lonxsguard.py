@@ -1202,3 +1202,13 @@ def _login_try(url, method, data, fail_str, base_len):
     return (ok, code, len(b), final)
 
 
+def _wlsize(path):
+    try:
+        b = os.path.getsize(path)
+        if b > 3_000_000:
+            return f"{b / 1048576:.0f} MB"
+        return f"{sum(1 for _ in open(path, encoding='latin-1'))} líneas"
+    except Exception:
+        return "?"
+
+

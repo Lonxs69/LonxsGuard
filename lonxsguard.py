@@ -581,3 +581,199 @@ def m_http(st):
 # ===========================================================================
 # MÓDULO 7 — Reporte HTML
 # ===========================================================================
+def m_report(st):
+    print(f"{C.BOLD}[7] Generar reporte HTML{C.END}\n")
+    n = st.net or {}
+    esc = lambda x: html.escape(str(x))
+    counts = {}
+    for f in st.findings:
+        counts[f["sev"]] = counts.get(f["sev"], 0) + 1
+    order = ["CRITICAL", "HIGH", "MEDIUM", "LOW", "INFO"]
+    cards = ""
+    for f in st.sorted_findings():
+        cards += (f'<div class="fd {f["sev"]}">'
+                  f'<div class="fh"><span class="bdg {f["sev"]}">{f["sev"]}</span>'
+                  f'<span class="ft">{esc(f["title"])}</span></div>'
+                  f'<div class="fdet">{esc(f["detail"])}</div>'
+                  + (f'<div class="frec">✔ {esc(f["reco"])}</div>' if f["reco"] else "")
+                  + "</div>")
+    hrows = ""
+    for h in st.hosts:
+        pc = "".join(f'<span class="pc">{esc(p["port"])}/{esc(p["service"])}</span>'
+                     for p in h["ports"]) or '<span class="mut">—</span>'
+        gw = ' <span class="gw">gateway</span>' if h["ip"] == n.get("gateway") else ""
+        hrows += (f'<tr><td class="mono">{esc(h["ip"])}{gw}</td>'
+                  f'<td>{esc(h["vendor"]) or "—"}</td><td>{pc}</td></tr>')
+    caps = ""
+    for c in st.captures:
+        caps += (f'<div class="cap"><span class="kc">{esc(c["kind"])}</span>'
+                 f'<code>{esc(c["value"][:280])}</code></div>')
+    flags = collect_flags(st)
+    flag_items = "".join(
+        f'<li class="{k}"><b>{"🚩" if k == "flag" else "⏱"}</b> {esc(v)}</li>'
+        for k, v in flags)
+    total = len(st.findings)
+    segs = ""
+    if total:
+        for s in order:
+            cnt = counts.get(s, 0)
+            if cnt:
+                segs += f'<span class="seg {s}" style="flex:{cnt}"></span>'
+    else:
+        segs = '<span class="seg EMPTY" style="flex:1"></span>'
+    legend = "".join(f'<span class="lg"><i class="dot {s}"></i>{s}·{counts.get(s,0)}</span>'
+                     for s in order)
+
+    def tile(num, lab, cls=""):
+        return (f'<div class="kpi {cls}"><div class="kn" data-target="{num}">0</div>'
+                f'<div class="kl">{lab}</div></div>')
+    kpis = (tile(total, "Hallazgos")
+            + tile(counts.get("CRITICAL", 0), "Críticos", "crit")
+            + tile(counts.get("HIGH", 0), "Altos", "danger")
+            + tile(len(st.captures), "Capturas")
+            + tile(len(flags), "Flags", "flag"))
+
+    segs = ""
+    if total:
+        for s in order:
+            cnt = counts.get(s, 0)
+            if cnt:
+                segs += f'<span class="seg {s}" style="--w:{cnt / total * 100:.1f}%"></span>'
+    else:
+        segs = '<span class="seg EMPTY" style="--w:100%"></span>'
+
+    CSS = r"""
+*{box-sizing:border-box}
+:root{--bg:#05080e;--bg2:#0a0f1a;--panel:#0b111c;--bd:rgba(0,255,156,.15);--bd2:rgba(0,255,156,.55);
+--tx:#d6f5e4;--mut:#6f8a86;--grn:#00ff9c;--cy:#22d3ee;--vi:#a855f7;--ok:#00ff9c;
+--CRITICAL:#ff4d61;--HIGH:#ff8c42;--MEDIUM:#ffd23d;--LOW:#4da6ff;--INFO:#22d3ee}
+html{scroll-behavior:smooth}
+body{margin:0;background:var(--bg);color:var(--tx);min-height:100vh;font-size:14px;line-height:1.6;
+font-family:ui-monospace,SFMono-Regular,Menlo,"Cascadia Code","Courier New",monospace}
+.aurora{position:fixed;inset:0;z-index:0;overflow:hidden;pointer-events:none}
+.aurora span{position:absolute;width:46vw;height:46vw;border-radius:50%;opacity:.13;will-change:transform;
+background:radial-gradient(circle,var(--grn),transparent 62%);top:-12vh;left:-10vw;animation:drift 30s ease-in-out infinite}
+.aurora span:nth-child(2){background:radial-gradient(circle,var(--cy),transparent 62%);
+left:auto;right:-12vw;top:40vh;animation-duration:38s;animation-direction:reverse}
+@keyframes drift{0%,100%{transform:translate(0,0) scale(1)}50%{transform:translate(9vw,7vh) scale(1.2)}}
+.scan{position:fixed;inset:0;z-index:1;pointer-events:none;opacity:.5;
+background:repeating-linear-gradient(0deg,transparent 0,transparent 2px,rgba(0,255,156,.022) 3px)}
+@media(prefers-reduced-motion:reduce){.aurora span{animation:none}.cur{animation:none}}
+.wrap{position:relative;z-index:2;max-width:940px;margin:0 auto;padding:26px 18px 72px}
+.term{background:linear-gradient(180deg,var(--panel),var(--bg2));border:1px solid var(--bd);border-radius:12px;
+overflow:hidden;box-shadow:0 12px 44px rgba(0,0,0,.55),0 0 24px rgba(0,255,156,.05)}
+.termbar{display:flex;align-items:center;gap:7px;padding:11px 14px;border-bottom:1px solid var(--bd);background:rgba(0,255,156,.03)}
+.tdot{width:11px;height:11px;border-radius:50%}.tdot.r{background:#ff5f57}.tdot.y{background:#febc2e}.tdot.g{background:#28c840}
+.termttl{margin-left:10px;color:var(--mut);font-size:.78rem}
+.termbody{padding:20px 22px}
+.cmd{color:var(--mut);font-size:.84rem}.cmd b{color:var(--grn);font-weight:600}.cmd i{color:var(--cy);font-style:normal}
+h1{margin:8px 0 2px;font-size:1.5rem;color:var(--grn);letter-spacing:.5px;text-shadow:0 0 18px rgba(0,255,156,.4)}
+.cur{display:inline-block;width:9px;height:1.02em;background:var(--grn);vertical-align:-2px;margin-left:4px;animation:blink 1.1s steps(1) infinite}
+@keyframes blink{50%{opacity:0}}
+.sub{color:var(--mut);font-size:.84rem;margin-top:7px}.sub b{color:var(--cy);font-weight:600}
+.grid{display:grid;grid-template-columns:repeat(5,1fr);gap:12px;margin:20px 0}
+.kpi{background:var(--panel);border:1px solid var(--bd);border-radius:12px;padding:16px 12px;text-align:center;transition:transform .16s,border-color .16s,box-shadow .16s}
+.kpi:hover{transform:translateY(-4px);border-color:var(--bd2);box-shadow:0 0 22px rgba(0,255,156,.13)}
+.kpi .kn{font-size:1.85rem;font-weight:700;color:var(--grn);line-height:1}
+.kpi .kl{color:var(--mut);font-size:.64rem;text-transform:uppercase;letter-spacing:1px;margin-top:8px}
+.kpi.crit .kn{color:var(--CRITICAL)}.kpi.danger .kn{color:var(--HIGH)}.kpi.flag .kn{color:var(--ok)}
+h2{font-size:.95rem;margin:28px 0 12px;color:var(--grn);letter-spacing:.5px}
+h2::before{content:"// ";color:var(--mut)}
+.panel{background:var(--panel);border:1px solid var(--bd);border-radius:12px;padding:18px 20px;margin:12px 0}
+.panel>h3{margin:0 0 13px;font-size:.82rem;color:var(--cy);text-transform:uppercase;letter-spacing:.8px}
+.bar{display:flex;height:16px;border-radius:8px;overflow:hidden;background:#060b13;border:1px solid var(--bd)}
+.seg{width:0;transition:width 1s cubic-bezier(.2,.8,.2,1)}.bar.filled .seg{width:var(--w)}
+.seg.CRITICAL{background:var(--CRITICAL)}.seg.HIGH{background:var(--HIGH)}.seg.MEDIUM{background:var(--MEDIUM)}
+.seg.LOW{background:var(--LOW)}.seg.INFO{background:var(--INFO)}.seg.EMPTY{background:#15241c}
+.legend{display:flex;flex-wrap:wrap;gap:15px;margin-top:13px;font-size:.78rem;color:var(--mut)}
+.lg .dot,.dot{display:inline-block;width:9px;height:9px;border-radius:2px;margin-right:6px}
+.dot.CRITICAL{background:var(--CRITICAL)}.dot.HIGH{background:var(--HIGH)}.dot.MEDIUM{background:var(--MEDIUM)}
+.dot.LOW{background:var(--LOW)}.dot.INFO{background:var(--INFO)}
+.meta{display:grid;grid-template-columns:auto 1fr auto 1fr;gap:11px 22px;font-size:.86rem}
+.meta b{color:var(--grn);font-weight:600;font-size:.72rem;text-transform:uppercase;letter-spacing:.6px}
+.mono{color:var(--cy)}
+.flags{border-color:rgba(0,255,156,.5);box-shadow:0 0 26px rgba(0,255,156,.14)}
+.flags ul{list-style:none;margin:0;padding:0}
+.flags li{padding:11px 13px;border-radius:9px;margin:7px 0;background:#060b13;border:1px solid var(--bd);
+font-size:.84rem;word-break:break-all;color:var(--grn)}
+.flags li.flag{border-left:3px solid var(--CRITICAL)}.flags li.date{border-left:3px solid var(--MEDIUM);color:var(--MEDIUM)}
+.fd{background:#060b13;border:1px solid var(--bd);border-left:3px solid var(--mut);border-radius:10px;
+padding:14px 16px;margin:10px 0;transition:transform .16s,border-color .16s}
+.fd:hover{transform:translateX(5px);border-color:var(--bd2)}
+.fd.CRITICAL{border-left-color:var(--CRITICAL)}.fd.HIGH{border-left-color:var(--HIGH)}
+.fd.MEDIUM{border-left-color:var(--MEDIUM)}.fd.LOW{border-left-color:var(--LOW)}.fd.INFO{border-left-color:var(--INFO)}
+.fh{display:flex;align-items:center;gap:11px}.ft{font-weight:700;color:var(--tx)}
+.fdet{color:var(--mut);font-size:.86rem;margin-top:7px}.frec{color:var(--grn);font-size:.82rem;margin-top:7px}
+.frec::before{content:"$ fix: ";color:var(--mut)}
+.bdg{border-radius:5px;padding:2px 9px;font-size:.64rem;font-weight:800;color:#05080e;letter-spacing:.5px}
+.bdg.CRITICAL{background:var(--CRITICAL)}.bdg.HIGH{background:var(--HIGH)}.bdg.MEDIUM{background:var(--MEDIUM)}
+.bdg.LOW{background:var(--LOW);color:#fff}.bdg.INFO{background:var(--INFO)}
+.cap{display:flex;gap:11px;align-items:flex-start;padding:9px 0;border-bottom:1px solid var(--bd)}
+.cap:last-child{border-bottom:none}
+.kc{flex:0 0 auto;font-size:.62rem;text-transform:uppercase;letter-spacing:.5px;background:rgba(0,255,156,.1);color:var(--grn);border-radius:4px;padding:3px 8px;font-weight:700}
+.cap code{color:var(--cy);font-size:.8rem;word-break:break-all}
+table{width:100%;border-collapse:collapse}td,th{text-align:left;padding:10px 8px;border-bottom:1px solid var(--bd)}
+th{color:var(--grn);font-size:.7rem;text-transform:uppercase;letter-spacing:.6px}
+.pc{display:inline-block;background:rgba(34,211,238,.1);color:var(--cy);border-radius:5px;padding:2px 9px;margin:2px;font-size:.76rem}
+.gw{background:var(--vi);color:#fff;border-radius:4px;padding:1px 8px;font-size:.62rem;font-weight:700}
+.mut{color:var(--mut)}.empty{color:var(--mut);padding:8px 0}
+footer{color:var(--mut);text-align:center;font-size:.76rem;margin-top:36px;padding-top:20px;border-top:1px solid var(--bd)}
+footer b{color:var(--grn)}
+@media(max-width:720px){.grid{grid-template-columns:repeat(2,1fr)}.meta{grid-template-columns:auto 1fr}h1{font-size:1.25rem}}
+"""
+
+    JS = r"""
+document.querySelectorAll('.kn').forEach(function(el){var t=+(el.dataset.target||0),d=850,s=null;
+function f(ts){if(!s)s=ts;var p=Math.min((ts-s)/d,1);el.textContent=Math.round(p*t);if(p<1)requestAnimationFrame(f);}requestAnimationFrame(f);});
+requestAnimationFrame(function(){var b=document.querySelector('.bar');if(b)b.classList.add('filled');});
+"""
+
+    sec_flags = (f'<h2>flags y fechas detectadas [{len(flags)}]</h2>'
+                 f'<div class="panel flags"><ul>{flag_items}</ul></div>') if flags else ""
+
+    head = (f'<!doctype html><html lang="es"><head><meta charset="utf-8">'
+            f'<meta name="viewport" content="width=device-width,initial-scale=1">'
+            f'<title>LonxsGuard — {esc(n.get("ssid",""))}</title><style>' + CSS + "</style></head>")
+
+    body = f"""<body><div class="aurora"><span></span><span></span></div><div class="scan"></div><div class="wrap">
+<div class="term">
+<div class="termbar"><span class="tdot r"></span><span class="tdot y"></span><span class="tdot g"></span>
+<span class="termttl">lonxsguard — security audit report</span></div>
+<div class="termbody">
+<div class="cmd"><b>lonxs69@lonxsguard</b>:~$ ./lonxsguard --report --target <i>{esc(n.get('ssid','—'))}</i></div>
+<h1>Reporte de auditoría<span class="cur"></span></h1>
+<div class="sub">red <b>{esc(n.get('ssid','—'))}</b> · {esc(n.get('cidr','—'))} · {esc(n.get('ts',''))} · <b>{total}</b> hallazgos · by {AUTHOR}</div>
+</div></div>
+<div class="grid">{kpis}</div>
+<div class="panel"><h3>distribución de severidad</h3><div class="bar">{segs}</div><div class="legend">{legend}</div></div>
+<div class="panel"><h3>objetivo</h3><div class="meta">
+<b>SSID</b><span>{esc(n.get('ssid','—'))}</span><b>Red</b><span class="mono">{esc(n.get('cidr','—'))}</span>
+<b>IP</b><span class="mono">{esc(n.get('ip','—'))}</span><b>Gateway</b><span class="mono">{esc(n.get('gateway','—'))}</span>
+<b>Portal</b><span>{esc(n.get('portal') or 'ninguno / autenticado')}</span><b>DNS</b><span class="mono">{esc(', '.join(n.get('dns',[])) or '—')}</span>
+</div></div>
+{sec_flags}
+<h2>hallazgos [{total}]</h2>
+{cards or '<div class="panel"><div class="empty">Sin hallazgos registrados.</div></div>'}
+<h2>interceptado [{len(st.captures)}]</h2>
+<div class="panel">{caps or '<div class="empty">Nada capturado todavía.</div>'}</div>
+<h2>hosts [{len(st.hosts)}]</h2>
+<div class="panel"><table>
+<tr><th>IP</th><th>Fabricante</th><th>Puertos</th></tr>{hrows or '<tr><td colspan=3 class="mut">Sin enumeración.</td></tr>'}</table></div>
+<footer>LonxsGuard v{VERSION} · by <b>{AUTHOR}</b> · uso exclusivo en redes autorizadas</footer>
+</div><script>""" + JS + "</script></body></html>"
+    doc = head + body
+    outdir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "reports")
+    os.makedirs(outdir, exist_ok=True)
+    safe = re.sub(r"[^A-Za-z0-9]+", "_", n.get("ssid", "red")).strip("_") or "red"
+    path = os.path.join(outdir, f"lonxsguard_{safe}_{dt.datetime.now():%Y%m%d_%H%M%S}.html")
+    with open(path, "w") as fh:
+        fh.write(doc)
+    print(f"  {C.G}Reporte guardado:{C.END} {path}")
+    print(f"  {C.DIM}Abrir con:  open '{path}'{C.END}")
+    if input("\n  ¿Abrir ahora? [s/N] ").strip().lower() == "s":
+        subprocess.run(["open", path])
+
+
+# ===========================================================================
+# MÓDULO 0 — Ver redes cercanas (pasivo) y conectar
+# ===========================================================================

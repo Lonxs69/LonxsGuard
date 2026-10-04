@@ -992,3 +992,51 @@ def _pause(msg="Enter para avanzar a la siguiente estación..."):
         pass
 
 
+def m_mission(st):
+    total = 6
+    print(f"{C.BOLD}{C.CY}🎯  MODO MISIÓN{C.END} — te guío estación por estación "
+          f"hasta la flag.\n{C.DIM}  En cada parada la herramienta prueba sola las "
+          f"técnicas y te dice qué encontró.{C.END}")
+    _pause("Enter para comenzar la misión...")
+
+    _stage(1, total, "Reconocimiento: elegir y acceder a la red")
+    if st.net.get("ip") and st.net.get("ssid", "").strip():
+        print(f"  Conectado actualmente a {C.G}{st.net['ssid']}{C.END}.")
+    try:
+        if input("  ¿Escanear redes y elegir objetivo ahora? [s/N] ").strip().lower() == "s":
+            m_scan(st)
+    except EOFError:
+        pass
+    _pause()
+
+    _stage(2, total, "Mapa de la red (IP, gateway, DNS, subred)")
+    m_detect(st)
+    _pause()
+
+    _stage(3, total, "El portal: detección y pruebas de bypass")
+    m_portal(st)
+    _pause()
+
+    _stage(4, total, "Interceptación activa: sondear el portal y capturar")
+    active_portal_probe(st)
+    _pause()
+
+    _stage(5, total, "Caza de la flag: cookies, JWT y fechas")
+    m_cookies(st)
+    print()
+    hunt_flags(st)
+    _pause("Enter para generar el informe final...")
+
+    _stage(6, total, "Informe final")
+    m_report(st)
+
+    print(f"\n{C.M}{'═' * 62}{C.END}")
+    print(f"  {C.BOLD}{C.G}MISIÓN COMPLETADA{C.END}  ·  "
+          f"{len(st.findings)} hallazgos · {len(st.captures)} capturas · "
+          f"{len(st.hosts)} hosts")
+    print(f"{C.M}{'═' * 62}{C.END}")
+
+
+# ===========================================================================
+# MÓDULO 🧰 — Caja de herramientas adaptativas (plan B cuando algo falla)
+# ===========================================================================

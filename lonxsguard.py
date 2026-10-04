@@ -854,3 +854,35 @@ def m_scan(st):
     _connect(st, nets[idx])
 
 
+def _connect(st, net):
+    import getpass
+    ssid = net["ssid"]
+    print(f"\n  Intentando conectar a {C.G}{ssid}{C.END} "
+          f"({'abierta' if net['open'] else net['security']})...")
+    cmd = ["networksetup", "-setairportnetwork", st.iface, ssid]
+    if not net["open"]:
+        try:
+            pw = getpass.getpass("  Contraseña (vacío si es portal abierto): ")
+        except Exception:
+            pw = ""
+        if pw:
+            cmd.append(pw)
+    out = sh(cmd, timeout=30)
+    if out:
+        print(f"  {C.Y}{out}{C.END}")
+    time.sleep(2)
+    ip = sh(["ipconfig", "getifaddr", st.iface])
+    now = _ssid(st.iface)
+    if now == ssid and ip:
+        print(f"  {C.G}✅ Conectado a {ssid}  (IP {ip}).{C.END}")
+        print(f"  {C.DIM}Siguiente paso sugerido: 'Auditar captive portal'.{C.END}")
+    elif ip:
+        print(f"  {C.CY}IP {ip}; red actual: {now}.{C.END}")
+    else:
+        print(f"  {C.R}No se pudo confirmar la conexión.{C.END} "
+              f"¿Contraseña correcta / red al alcance?")
+
+
+# ===========================================================================
+# SONDA ACTIVA — golpea el portal y captura (no espera, actúa)
+# ===========================================================================

@@ -211,3 +211,23 @@ APPLE_PROBE = "http://captive.apple.com/hotspot-detect.html"
 APPLE_OK = "<HTML><HEAD><TITLE>Success</TITLE></HEAD><BODY>Success</BODY></HTML>"
 
 
+def http_probe(url, timeout=6):
+    try:
+        req = urllib.request.Request(
+            url, headers={"User-Agent": "CaptiveNetworkSupport/1.0"})
+        with urllib.request.urlopen(req, timeout=timeout) as r:
+            return r.status, r.geturl(), r.read(30000).decode("utf-8", "replace"), dict(r.headers)
+    except urllib.error.HTTPError as e:
+        return e.code, url, "", dict(e.headers or {})
+    except Exception as e:
+        return None, url, f"__ERR__ {e}", {}
+
+
+# Sondas de varios SO: si el portal deja pasar una, otra lo delata.
+CANARIES = [
+    ("Apple", "http://captive.apple.com/hotspot-detect.html", "Success"),
+    ("Android", "http://connectivitycheck.gstatic.com/generate_204", None),  # espera 204
+    ("Microsoft", "http://www.msftconnecttest.com/connecttest.txt", "Microsoft Connect Test"),
+]
+
+

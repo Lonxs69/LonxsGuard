@@ -816,3 +816,10 @@ def _parse_wifi(out):
     return nets
 
 
+def _bars(rssi):
+    if rssi >= -55: return "▂▄▆█"
+    if rssi >= -67: return "▂▄▆ "
+    if rssi >= -78: return "▂▄  "
+    return "▂   "
+
+

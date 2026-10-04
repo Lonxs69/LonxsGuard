@@ -934,3 +934,29 @@ def active_portal_probe(st):
     _dns_egress(st, True)
 
 
+def collect_flags(st):
+    """Devuelve [(kind, texto)] con flags/fechas/epochs únicos de lo capturado."""
+    out, seen = [], set()
+
+    def add(kind, text):
+        if text not in seen:
+            seen.add(text)
+            out.append((kind, text))
+
+    for c in st.captures:
+        txt = f"{c.get('raw','')} {c.get('value','')}"
+        for tok in set(re.findall(r"[A-Za-z0-9+/=._-]{12,}", txt)):
+            for dec in _try_decode(tok):
+                if "flag" in dec.lower():
+                    add("flag", dec[:200])
+                for ep in re.findall(r"\b(1[0-9]{9})\b", dec):
+                    when = dt.datetime.fromtimestamp(int(ep))
+                    add("date", f"epoch {ep} = {when:%Y-%m-%d %H:%M:%S}")
+        for iso in set(re.findall(r"20\d{2}-\d{2}-\d{2}[T ]\d{2}:\d{2}:\d{2}", txt)):
+            add("date", iso)
+        m = re.search(r"(flag\{[^}]*\}|FLAG\{[^}]*\})", txt)
+        if m:
+            add("flag", m.group(1))
+    return out
+
+

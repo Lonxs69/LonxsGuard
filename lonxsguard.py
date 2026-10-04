@@ -1638,3 +1638,38 @@ def run_action(stdscr, func, st):
     stdscr.clear(); stdscr.refresh()
 
 
+def menu_loop(stdscr):
+    curses.curs_set(0)
+    curses.start_color(); curses.use_default_colors()
+    curses.init_pair(1, curses.COLOR_CYAN, -1)
+    curses.init_pair(2, curses.COLOR_GREEN, -1)
+    curses.init_pair(3, curses.COLOR_WHITE, -1)
+    curses.init_pair(4, curses.COLOR_YELLOW, -1)
+    curses.init_pair(5, curses.COLOR_MAGENTA, -1)
+    rainbow = [curses.COLOR_RED, curses.COLOR_YELLOW, curses.COLOR_GREEN,
+               curses.COLOR_CYAN, curses.COLOR_BLUE, curses.COLOR_MAGENTA]
+    for i, col in enumerate(rainbow):
+        curses.init_pair(10 + i, col, -1)
+    st = State()
+    idx = 0
+    while True:
+        draw(stdscr, idx, st)
+        k = stdscr.getch()
+        if k in (curses.KEY_UP, ord("k")):
+            idx = (idx - 1) % len(MENU)
+        elif k in (curses.KEY_DOWN, ord("j")):
+            idx = (idx + 1) % len(MENU)
+        elif k in (ord("q"), 27):
+            break
+        elif k in (curses.KEY_ENTER, 10, 13):
+            label, func = MENU[idx]
+            if func is None:
+                break
+            run_action(stdscr, func, st)
+        elif ord("1") <= k <= ord("9"):
+            i = k - ord("1")
+            if i < len(MENU) and MENU[i][1]:
+                idx = i
+                run_action(stdscr, MENU[i][1], st)
+
+

@@ -886,3 +886,51 @@ def _connect(st, net):
 # ===========================================================================
 # SONDA ACTIVA — golpea el portal y captura (no espera, actúa)
 # ===========================================================================
+def active_portal_probe(st):
+    portal = st.net.get("portal")
+    if not portal:
+        s, u, b, h = http_probe(APPLE_PROBE)
+        if s and b.strip() != APPLE_OK:
+            portal = u if u != APPLE_PROBE else h.get("Location", u)
+            st.net["portal"] = portal
+    if not portal:
+        gw = st.net.get("gateway")
+        if gw:
+            portal = f"http://{gw}/"
+            print(f"  {C.DIM}Sin captive portal activo; sondeo el gateway {gw}.{C.END}")
+    if not portal:
+        print(f"  {C.Y}No hay objetivo HTTP. Conéctate a la red del reto primero.{C.END}")
+        return
+
+    print(f"  Sondeando {C.G}{portal}{C.END} y siguiendo redirecciones...\n")
+    url, seen = portal, set()
+    for _ in range(6):
+        if url in seen:
+            break
+        seen.add(url)
+        s, u, b, hdr = http_probe(url)
+        print(f"    {C.CY}{s}{C.END}  {u}")
+        for k, v in (hdr or {}).items():
+            kl = k.lower()
+            if kl == "set-cookie":
+                st.captures.append({"kind": "setcookie", "value": f"Set-Cookie: {v}", "raw": v})
+                print(f"      {C.M}Set-Cookie: {v[:110]}{C.END}")
+                for kv in re.findall(r"([A-Za-z0-9_\-]+)=([A-Za-z0-9+/=._-]+)", v):
+                    for dec in _try_decode(kv[1]):
+                        print(f"        {C.CY}↳ {kv[0]} → {dec[:120]}{C.END}")
+                        _hunt_timestamp(st, dec, kv[0])
+            elif kl in ("date", "last-modified", "expires"):
+                st.captures.append({"kind": "date", "value": f"{k}: {v}", "raw": v})
+                print(f"      {C.CY}{k}: {v}{C.END}")
+        _analyze_form(st, u, b)
+        loc = (hdr or {}).get("Location")
+        if loc and loc != url:
+            url = loc
+            continue
+        break
+
+    print(f"\n  {C.BOLD}Probando métodos de salida / bypass:{C.END}")
+    _preauth_leak(st, True)
+    _dns_egress(st, True)
+
+

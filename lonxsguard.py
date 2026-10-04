@@ -61,3 +61,16 @@ def sh(cmd, timeout=15):
         return ""
 
 
+def _ssid(iface):
+    out = sh(["ipconfig", "getsummary", iface])
+    m = re.search(r"\bSSID\s*:\s*(.+)", out)
+    if m:
+        return m.group(1).strip()
+    out = sh(["networksetup", "-getairportnetwork", iface])
+    m = re.search(r"Current Wi-Fi Network:\s*(.+)", out)
+    return m.group(1).strip() if m else "(desconocido)"
+
+
+# ---------------------------------------------------------------------------
+# Intro con logo RGB (truecolor) + bienvenida
+# ---------------------------------------------------------------------------

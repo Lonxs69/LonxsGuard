@@ -492,3 +492,63 @@ def _hunt_timestamp(st, text, origen=""):
 # ===========================================================================
 # MÓDULO 5 — Enumeración de hosts y puertos (nmap)
 # ===========================================================================
+def m_enum(st):
+    if not st.net:
+        m_detect(st); print()
+    print(f"{C.BOLD}[5] Enumeración de hosts y puertos{C.END}\n")
+    cidr = st.net.get("cidr")
+    if not cidr:
+        print(f"  {C.Y}Sin subred válida.{C.END}"); return
+    print(f"  {C.Y}nmap barrerá {cidr}. Solo en red AUTORIZADA.{C.END}")
+    if input("  ¿Continuar? [s/N] ").strip().lower() != "s":
+        print("  Cancelado."); return
+
+    print(f"\n  Descubriendo hosts vivos...")
+    out = sh(["nmap", "-sn", "-T4", cidr], timeout=120)
+    hosts = []
+    for block in re.split(r"\nNmap scan report for ", out):
+        ipm = re.search(r"([\d.]+)", block)
+        if not ipm or "Starting Nmap" in block.split("\n")[0]:
+            if not ipm: continue
+        if not ipm: continue
+        ip = ipm.group(1)
+        if not re.fullmatch(r"\d+\.\d+\.\d+\.\d+", ip): continue
+        macm = re.search(r"MAC Address: ([0-9A-Fa-f:]{17})\s*\(([^)]*)\)", block)
+        hosts.append({"ip": ip, "mac": macm.group(1) if macm else "",
+                      "vendor": macm.group(2) if macm else "", "ports": []})
+    st.hosts = hosts
+    print(f"  {C.G}{len(hosts)} host(s) vivo(s):{C.END}")
+    for h in hosts:
+        tag = f"    {h['ip']:<16}"
+        if h["vendor"]: tag += f" {C.DIM}{h['vendor']}{C.END}"
+        if h["ip"] == st.net.get("gateway"): tag += f"  {C.Y}← gateway/portal{C.END}"
+        print(tag)
+
+    targets = [h for h in hosts if h["ip"] != st.net.get("ip")]
+    if not targets: return
+    print(f"\n  Escaneando puertos (top-100 + versión)...")
+    risky = {"telnet": ("HIGH", "Telnet (texto plano)"),
+             "ftp": ("MEDIUM", "FTP"), "http": ("LOW", "HTTP sin cifrar"),
+             "microsoft-ds": ("MEDIUM", "SMB"), "ms-wbt-server": ("MEDIUM", "RDP"),
+             "vnc": ("HIGH", "VNC")}
+    for h in targets:
+        out = sh(["nmap", "-F", "-sV", "--version-light", "-T4", h["ip"]], timeout=180)
+        for line in out.splitlines():
+            m = re.match(r"(\d+)/(tcp|udp)\s+open\s+(\S+)\s*(.*)", line)
+            if m:
+                h["ports"].append({"port": m.group(1), "proto": m.group(2),
+                                   "service": m.group(3), "version": m.group(4).strip()})
+        if h["ports"]:
+            print(f"    {h['ip']:<16} " +
+                  ", ".join(f"{p['port']}/{p['service']}" for p in h["ports"]))
+            for p in h["ports"]:
+                if p["service"] in risky:
+                    sev, t = risky[p["service"]]
+                    st.add(sev, f"{t} en {h['ip']}",
+                           f"Puerto {p['port']} ({p['version'] or p['service']}).",
+                           "Cerrar/segmentar/cifrar el servicio.")
+
+
+# ===========================================================================
+# MÓDULO 6 — Inspector de peticiones HTTP (replay manual)
+# ===========================================================================

@@ -320,3 +320,21 @@ def _preauth_leak(st, captive):
         print(f"  {C.DIM}Sin fuga directa pre-auth (bien).{C.END}")
 
 
+def _dns_egress(st, captive):
+    gw = st.net.get("gateway", "")
+    for srv in (st.net.get("dns") or []) + ([gw] if gw else []):
+        out = sh(["dig", "+time=3", "+tries=1", "+short", f"@{srv}", "example.com"])
+        if re.search(r"\d+\.\d+\.\d+\.\d+", out):
+            if captive:
+                st.add("HIGH", "DNS externo resoluble pre-auth (túnel DNS)",
+                       f"{srv} resuelve dominios externos sin autenticar: "
+                       "canal para túnel DNS (internet gratis / exfiltración).",
+                       "Restringir DNS pre-auth solo a los dominios del portal.")
+            return
+    if captive:
+        print(f"  {C.DIM}DNS externo no resoluble pre-auth (bien).{C.END}")
+
+
+# ===========================================================================
+# MÓDULO 3 — Interceptor de cabeceras HTTP (tcpdump)
+# ===========================================================================

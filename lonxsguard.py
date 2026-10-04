@@ -338,3 +338,56 @@ def _dns_egress(st, captive):
 # ===========================================================================
 # MÓDULO 3 — Interceptor de cabeceras HTTP (tcpdump)
 # ===========================================================================
+def m_sniff(st):
+    iface = st.iface
+    print(f"{C.BOLD}[3] Interceptor de cabeceras HTTP{C.END}")
+    print(f"  {C.DIM}Captura tráfico HTTP en {iface} y extrae peticiones, "
+          f"cookies, credenciales y fechas.{C.END}")
+    print(f"  {C.Y}Requiere sudo. Solo sobre la red AUTORIZADA del reto.{C.END}\n")
+    try:
+        dur = input("  Duración de la captura en segundos [30]: ").strip()
+        dur = int(dur) if dur else 30
+    except (ValueError, EOFError):
+        dur = 30
+
+    ports = "tcp port 80 or tcp port 8080 or tcp port 8000"
+    cmd = ["sudo", "tcpdump", "-i", iface, "-s", "0", "-A", "-l", "-n", ports]
+    print(f"\n  Capturando {dur}s... (Ctrl-C para parar antes)\n")
+    try:
+        proc = subprocess.Popen(cmd, stdout=subprocess.PIPE,
+                                stderr=subprocess.STDOUT, text=True, bufsize=1)
+    except Exception as e:
+        print(f"  {C.R}No se pudo iniciar tcpdump: {e}{C.END}")
+        return
+
+    deadline = time.time() + dur
+    found = 0
+    try:
+        while time.time() < deadline:
+            rlist, _, _ = select.select([proc.stdout], [], [], 0.5)
+            if not rlist:
+                continue
+            line = proc.stdout.readline()
+            if not line:
+                break
+            hit = _parse_http_line(st, line)
+            if hit:
+                found += 1
+    except KeyboardInterrupt:
+        print(f"\n  {C.DIM}Captura detenida por el usuario.{C.END}")
+    finally:
+        try:
+            proc.terminate()
+        except Exception:
+            pass
+    if found:
+        print(f"\n  {C.G}{found} evento(s) de interés capturado(s).{C.END} "
+              f"Analízalos en el módulo [4].")
+    else:
+        print(f"\n  {C.Y}0 eventos: normal si el tráfico va por HTTPS (443) o si solo "
+              f"ves tu propio tráfico.{C.END}")
+        print(f"  {C.DIM}El sniffer es PASIVO: solo captura lo que ya circula en HTTP. "
+              f"Para forzar captura, usa el Inspector [8] o el Modo Misión [1], que "
+              f"golpean el portal activamente y sí traen cookies/cabeceras.{C.END}")
+
+

@@ -1212,3 +1212,50 @@ def _wlsize(path):
         return "?"
 
 
+def discover_login_targets(st):
+    """Descubre webs/logins en la red (ARP + hosts conocidos + gateway)."""
+    hosts = []
+
+    def addh(ip):
+        if (ip and ip not in hosts and not ip.startswith(("224.", "239."))
+                and not ip.endswith(".255")):
+            hosts.append(ip)
+    addh(st.net.get("gateway"))
+    for h in st.hosts:
+        addh(h["ip"])
+    for ip, _m in re.findall(r"\(([\d.]+)\) at ([0-9a-f:]{1,17})",
+                             sh(["arp", "-a", "-i", st.iface])):
+        addh(ip)
+
+    ports = [80, 8080, 8000, 8443, 443, 81, 8081, 3000, 5000]
+    targets, lock = [], threading.Lock()
+
+    def probe(ip):
+        for p in ports:
+            try:
+                socket.create_connection((ip, p), timeout=0.6).close()
+            except Exception:
+                continue
+            scheme = "https" if p in (443, 8443) else "http"
+            for path in ("/", "/login"):
+                s, u, b, _h = http_probe(f"{scheme}://{ip}:{p}{path}")
+                if s is None:
+                    continue
+                has = bool(re.search(r'type=["\']password', b or "", re.I)) or \
+                    bool(re.search(r"iniciar sesi|sign ?in|log ?in|contrase", b or "", re.I))
+                tm = re.search(r"<title>(.*?)</title>", b or "", re.I | re.S)
+                with lock:
+                    targets.append({"url": u, "login": has, "code": s,
+                                    "title": tm.group(1).strip()[:38] if tm else ""})
+                if has:
+                    break
+            break
+    with ThreadPoolExecutor(max_workers=40) as ex:
+        list(ex.map(probe, hosts))
+    uniq, seen = [], set()
+    for t in sorted(targets, key=lambda t: (not t["login"], t["url"])):
+        if t["url"] not in seen:
+            seen.add(t["url"]); uniq.append(t)
+    return uniq
+
+

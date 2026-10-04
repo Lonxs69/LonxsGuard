@@ -1621,3 +1621,20 @@ def draw(stdscr, idx, st):
     stdscr.refresh()
 
 
+def run_action(stdscr, func, st):
+    curses.endwin()
+    os.system("clear")
+    print(C.CY + BANNER + C.END)
+    try:
+        func(st)
+    except KeyboardInterrupt:
+        print(f"\n  {C.DIM}(interrumpido){C.END}")
+    except Exception as e:
+        print(f"\n  {C.R}Error en el módulo: {e}{C.END}")
+    try:
+        input(f"\n{C.DIM}  Presiona Enter para volver al menú...{C.END}")
+    except EOFError:
+        pass
+    stdscr.clear(); stdscr.refresh()
+
+

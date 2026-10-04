@@ -1040,3 +1040,14 @@ def m_mission(st):
 # ===========================================================================
 # MÓDULO 🧰 — Caja de herramientas adaptativas (plan B cuando algo falla)
 # ===========================================================================
+def t_portal_multi(st):
+    captive, portal, ev = detect_portal_multi()
+    for name, res in ev:
+        print(f"  {name:<10} {res}")
+    if captive:
+        st.net["portal"] = portal
+        print(f"\n  {C.Y}Portal detectado{C.END} → {portal}")
+    else:
+        print(f"\n  {C.G}Ninguna sonda fue interceptada: salida libre / ya autenticado.{C.END}")
+
+

@@ -1509,3 +1509,41 @@ def m_wifi_crack(st):
 # ===========================================================================
 # MÓDULO 🔵 — Red 1: conectar y pasar el captive portal automáticamente
 # ===========================================================================
+def m_red1(st):
+    if not st.net:
+        m_detect(st); print()
+    print(f"{C.BOLD}[🔵] Red 1 — Conectar y pasar el portal{C.END}\n")
+    active_portal_probe(st)
+    portal = st.net.get("portal")
+    if not portal:
+        print(f"\n  {C.G}Parece que ya hay salida a internet (nada que aceptar).{C.END}")
+        return
+    print(f"\n  Intentando aceptar el portal automáticamente...")
+    _s, u, b, _h = http_probe(portal)
+    m = re.search(r'<form[^>]*action=["\']([^"\']*)["\']', b or "", re.I)
+    if m:
+        from urllib.parse import urlparse
+        action = m.group(1) or u
+        if action.startswith("/"):
+            pr = urlparse(u); action = f"{pr.scheme}://{pr.netloc}{action}"
+        elif not action.startswith("http"):
+            action = u.rstrip("/") + "/" + action
+        data = {}
+        for inp in re.findall(r'<input[^>]*>', b or "", re.I):
+            nm = re.search(r'name=["\']([^"\']+)', inp, re.I)
+            vl = re.search(r'value=["\']([^"\']*)', inp, re.I)
+            if nm:
+                data[nm.group(1)] = vl.group(1) if vl else "1"
+        _login_try(action, "POST", data, None, None)
+        time.sleep(1)
+    cap, _p, _e = detect_portal_multi()
+    if not cap:
+        print(f"  {C.G}✅ Portal superado: hay internet.{C.END}")
+    else:
+        print(f"  {C.Y}Aún detrás del portal.{C.END} Puede requerir aceptar términos "
+              f"en el navegador o es un login (usa Red 2).")
+
+
+# ===========================================================================
+# MÓDULO ⚙️ — Avanzado (el resto de herramientas, sin saturar el menú)
+# ===========================================================================

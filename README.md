@@ -7,6 +7,8 @@
   <img src="https://img.shields.io/badge/platform-macOS-000000?logo=apple&logoColor=white">
   <img src="https://img.shields.io/badge/dependencies-none-2ea44f">
   <img src="https://img.shields.io/badge/license-MIT-blue">
+  <img src="https://img.shields.io/github/stars/Lonxs69/LonxsGuard?style=flat&logo=github&color=yellow">
+  <img src="https://img.shields.io/github/last-commit/Lonxs69/LonxsGuard">
 </p>
 
 <p align="center">
